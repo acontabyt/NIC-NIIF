@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guía Interactiva NIC: Normas Internacionales de Contabilidad</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Chart Container Strict Styling */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* Tailwind max-w-xl approx */
+            height: 300px;
+            max-height: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        
+        /* Smooth transitions for view switching */
+        .view-section {
+            transition: opacity 0.3s ease-in-out;
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f5f5f4;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d6d3d1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a29e;
+        }
+    </style>
+    <!-- Chosen Palette: Warm Neutrals (Stone) with Professional Accents (Slate/Blue/Orange) -->
+    <!-- Application Structure Plan: Dashboard-style SPA. 
+         1. Sidebar Navigation: Persistent access to the 4 key NIC modules.
+         2. Dashboard (Inicio): High-level overview card layout.
+         3. NIC 1 Module: Interactive accordion for structure understanding.
+         4. NIC 2 Module: 'Simulator' approach. Input fields for Cost/Price -> Real-time VNR Calculation -> Bar Chart comparison.
+         5. NIC 16 Module: Depreciation Calculator. Inputs for Asset cost/life -> Line Chart visualizing value over time.
+         6. NIC 38 Module: Decision Tree interface for R&D classification. 
+         Structure chosen to transform static text into active tools (calculators and decision trees) for better retention. -->
+    <!-- Visualization & Content Choices: 
+         - NIC 2: Bar Chart (Chart.js) to visually compare Cost vs VNR. Immediate red flag if VNR < Cost. 
+         - NIC 16: Line Chart (Chart.js) to show the 'consumption' of economic benefits over years.
+         - NIC 1 & 38: HTML-based interactive cards and logic flows (No Canvas needed) to handle qualitative structural information.
+         - Interaction: Javascript event listeners on all inputs to trigger immediate chart updates. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="bg-stone-50 text-stone-800 font-sans h-screen flex overflow-hidden">
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-64 bg-stone-900 text-stone-300 flex-shrink-0 flex flex-col hidden md:flex shadow-xl">
+        <div class="p-6 border-b border-stone-700">
+            <h1 class="text-2xl font-bold text-white tracking-tight">NIC <span class="text-orange-500">Interactiva</span></h1>
+            <p class="text-xs text-stone-400 mt-2">Guía de Normas Contables</p>
+        </div>
+        <nav class="flex-1 overflow-y-auto py-4">
+            <button onclick="navigateTo('dashboard')" class="nav-btn w-full text-left px-6 py-3 hover:bg-stone-800 hover:text-white transition-colors border-l-4 border-transparent active-nav" id="nav-dashboard">
+                <span class="mr-3">📊</span> Inicio / Resumen
+            </button>
+            <button onclick="navigateTo('nic1')" class="nav-btn w-full text-left px-6 py-3 hover:bg-stone-800 hover:text-white transition-colors border-l-4 border-transparent" id="nav-nic1">
+                <span class="mr-3">📑</span> NIC 1: Estados Financieros
+            </button>
+            <button onclick="navigateTo('nic2')" class="nav-btn w-full text-left px-6 py-3 hover:bg-stone-800 hover:text-white transition-colors border-l-4 border-transparent" id="nav-nic2">
+                <span class="mr-3">📦</span> NIC 2: Inventarios
+            </button>
+            <button onclick="navigateTo('nic16')" class="nav-btn w-full text-left px-6 py-3 hover:bg-stone-800 hover:text-white transition-colors border-l-4 border-transparent" id="nav-nic16">
+                <span class="mr-3">🏗️</span> NIC 16: Propiedades
+            </button>
+            <button onclick="navigateTo('nic38')" class="nav-btn w-full text-left px-6 py-3 hover:bg-stone-800 hover:text-white transition-colors border-l-4 border-transparent" id="nav-nic38">
+                <span class="mr-3">💡</span> NIC 38: Intangibles
+            </button>
+        </nav>
+        <div class="p-4 bg-stone-950 text-xs text-stone-500">
+            v1.0.0 | Basado en Normas IFRS
+        </div>
+    </aside>
+
+    <!-- Mobile Header -->
+    <div class="md:hidden fixed top-0 left-0 w-full bg-stone-900 z-50 flex justify-between items-center p-4 text-white">
+        <span class="font-bold">NIC Interactiva</span>
+        <button id="mobile-menu-btn" class="text-2xl">☰</button>
+    </div>
+
+    <!-- Mobile Menu Overlay -->
+    <div id="mobile-menu" class="fixed inset-0 bg-stone-900 z-40 hidden flex flex-col pt-16 px-4 space-y-4 text-white md:hidden">
+        <button onclick="navigateTo('dashboard'); toggleMobileMenu()" class="p-4 border-b border-stone-700">Inicio</button>
+        <button onclick="navigateTo('nic1'); toggleMobileMenu()" class="p-4 border-b border-stone-700">NIC 1: Presentación</button>
+        <button onclick="navigateTo('nic2'); toggleMobileMenu()" class="p-4 border-b border-stone-700">NIC 2: Inventarios</button>
+        <button onclick="navigateTo('nic16'); toggleMobileMenu()" class="p-4 border-b border-stone-700">NIC 16: PPE</button>
+        <button onclick="navigateTo('nic38'); toggleMobileMenu()" class="p-4 border-b border-stone-700">NIC 38: Intangibles</button>
+        <button onclick="toggleMobileMenu()" class="p-4 text-stone-400 mt-auto mb-4">Cerrar Menú</button>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto bg-stone-50 p-4 md:p-8 pt-20 md:pt-8 w-full">
+        
+        <!-- DASHBOARD VIEW -->
+        <section id="dashboard" class="view-section max-w-6xl mx-auto">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-stone-800 mb-2">Panel de Control de Normas</h2>
+                <p class="text-stone-600">Bienvenido a su herramienta interactiva de análisis contable. Seleccione una norma para explorar sus criterios de medición, presentación y valoración.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Card 1 -->
+                <div onclick="navigateTo('nic1')" class="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer border-t-4 border-blue-500 group">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">📑</div>
+                    </div>
+                    <h3 class="font-bold text-lg mb-2">NIC 1</h3>
+                    <p class="text-sm text-stone-500 mb-4">Presentación de Estados Financieros</p>
+                    <div class="text-xs font-semibold text-blue-600">Estructura & Comparabilidad &rarr;</div>
+                </div>
+
+                <!-- Card 2 -->
+                <div onclick="navigateTo('nic2')" class="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer border-t-4 border-emerald-500 group">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 bg-emerald-50 rounded-lg group-hover:bg-emerald-100 transition-colors">📦</div>
+                    </div>
+                    <h3 class="font-bold text-lg mb-2">NIC 2</h3>
+                    <p class="text-sm text-stone-500 mb-4">Inventarios</p>
+                    <div class="text-xs font-semibold text-emerald-600">Costo vs. VNR &rarr;</div>
+                </div>
+
+                <!-- Card 3 -->
+                <div onclick="navigateTo('nic16')" class="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer border-t-4 border-orange-500 group">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 bg-orange-50 rounded-lg group-hover:bg-orange-100 transition-colors">🏗️</div>
+                    </div>
+                    <h3 class="font-bold text-lg mb-2">NIC 16</h3>
+                    <p class="text-sm text-stone-500 mb-4">Propiedades, Planta y Equipo</p>
+                    <div class="text-xs font-semibold text-orange-600">Modelos de Depreciación &rarr;</div>
+                </div>
+
+                <!-- Card 4 -->
+                <div onclick="navigateTo('nic38')" class="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer border-t-4 border-purple-500 group">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 bg-purple-50 rounded-lg group-hover:bg-purple-100 transition-colors">💡</div>
+                    </div>
+                    <h3 class="font-bold text-lg mb-2">NIC 38</h3>
+                    <p class="text-sm text-stone-500 mb-4">Activos Intangibles</p>
+                    <div class="text-xs font-semibold text-purple-600">Investigación vs. Desarrollo &rarr;</div>
+                </div>
+            </div>
+
+            <div class="mt-8 bg-white p-6 rounded-xl shadow-sm">
+                <h3 class="font-bold text-stone-700 mb-4">Resumen de Conceptos Clave</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div class="flex items-center p-3 bg-stone-50 rounded">
+                        <span class="w-2 h-2 rounded-full bg-stone-400 mr-3"></span>
+                        <span><strong>Prudencia:</strong> No sobreestimar activos (NIC 2).</span>
+                    </div>
+                    <div class="flex items-center p-3 bg-stone-50 rounded">
+                        <span class="w-2 h-2 rounded-full bg-stone-400 mr-3"></span>
+                        <span><strong>Devengo:</strong> Reconocer transacciones cuando ocurren (NIC 1).</span>
+                    </div>
+                    <div class="flex items-center p-3 bg-stone-50 rounded">
+                        <span class="w-2 h-2 rounded-full bg-stone-400 mr-3"></span>
+                        <span><strong>Sistemático:</strong> La depreciación no es aleatoria (NIC 16).</span>
+                    </div>
+                    <div class="flex items-center p-3 bg-stone-50 rounded">
+                        <span class="w-2 h-2 rounded-full bg-stone-400 mr-3"></span>
+                        <span><strong>Identificabilidad:</strong> Clave para intangibles (NIC 38).</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- NIC 1 VIEW -->
+        <section id="nic1" class="view-section hidden max-w-5xl mx-auto">
+            <div class="mb-6 border-b pb-4">
+                <h2 class="text-2xl font-bold text-blue-800">NIC 1: Presentación de Estados Financieros</h2>
+                <p class="mt-2 text-stone-600">Esta sección desglosa la estructura obligatoria que garantiza la comparabilidad y transparencia de la información financiera a nivel global.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Interactive Structure Explorer -->
+                <div class="lg:col-span-2 space-y-4">
+                    <h3 class="font-bold text-stone-700">Componentes Obligatorios (Interactúe para ver detalles)</h3>
+                    
+                    <div class="nic1-item bg-white border border-stone-200 rounded-lg overflow-hidden transition-all hover:shadow-md">
+                        <button onclick="toggleAccordion('acc-esf')" class="w-full flex justify-between items-center p-4 bg-stone-50 hover:bg-blue-50 transition-colors text-left font-semibold">
+                            <span>1. Estado de Situación Financiera (Balance)</span>
+                            <span id="icon-acc-esf" class="text-stone-400 transform transition-transform">+</span>
+                        </button>
+                        <div id="acc-esf" class="hidden p-4 text-sm text-stone-600 border-t border-stone-100">
+                            Presenta los <strong>Activos</strong>, <strong>Pasivos</strong> y <strong>Patrimonio</strong> en una fecha específica. Es una "foto" de la salud financiera de la empresa.
+                        </div>
+                    </div>
+
+                    <div class="nic1-item bg-white border border-stone-200 rounded-lg overflow-hidden transition-all hover:shadow-md">
+                        <button onclick="toggleAccordion('acc-eri')" class="w-full flex justify-between items-center p-4 bg-stone-50 hover:bg-blue-50 transition-colors text-left font-semibold">
+                            <span>2. Estado del Resultado y Otro Resultado Integral</span>
+                            <span id="icon-acc-eri" class="text-stone-400 transform transition-transform">+</span>
+                        </button>
+                        <div id="acc-eri" class="hidden p-4 text-sm text-stone-600 border-t border-stone-100">
+                            Muestra el rendimiento financiero (Ingresos - Gastos = Utilidad/Pérdida) y otras partidas que no van a resultados del periodo (ORI), como revaluaciones.
+                        </div>
+                    </div>
+
+                    <div class="nic1-item bg-white border border-stone-200 rounded-lg overflow-hidden transition-all hover:shadow-md">
+                        <button onclick="toggleAccordion('acc-ecp')" class="w-full flex justify-between items-center p-4 bg-stone-50 hover:bg-blue-50 transition-colors text-left font-semibold">
+                            <span>3. Estado de Cambios en el Patrimonio</span>
+                            <span id="icon-acc-ecp" class="text-stone-400 transform transition-transform">+</span>
+                        </button>
+                        <div id="acc-ecp" class="hidden p-4 text-sm text-stone-600 border-t border-stone-100">
+                            Concilia los saldos iniciales y finales de las cuentas patrimoniales (Capital Social, Reservas, Resultados Acumulados), mostrando distribuciones de dividendos y aportes.
+                        </div>
+                    </div>
+
+                    <div class="nic1-item bg-white border border-stone-200 rounded-lg overflow-hidden transition-all hover:shadow-md">
+                        <button onclick="toggleAccordion('acc-efe')" class="w-full flex justify-between items-center p-4 bg-stone-50 hover:bg-blue-50 transition-colors text-left font-semibold">
+                            <span>4. Estado de Flujos de Efectivo</span>
+                            <span id="icon-acc-efe" class="text-stone-400 transform transition-transform">+</span>
+                        </button>
+                        <div id="acc-efe" class="hidden p-4 text-sm text-stone-600 border-t border-stone-100">
+                            Muestra las entradas y salidas de efectivo clasificadas en tres actividades: <strong>Operación</strong>, <strong>Inversión</strong> y <strong>Financiación</strong>.
+                        </div>
+                    </div>
+
+                    <div class="nic1-item bg-white border border-stone-200 rounded-lg overflow-hidden transition-all hover:shadow-md">
+                        <button onclick="toggleAccordion('acc-not')" class="w-full flex justify-between items-center p-4 bg-stone-50 hover:bg-blue-50 transition-colors text-left font-semibold">
+                            <span>5. Notas a los Estados Financieros</span>
+                            <span id="icon-acc-not" class="text-stone-400 transform transition-transform">+</span>
+                        </button>
+                        <div id="acc-not" class="hidden p-4 text-sm text-stone-600 border-t border-stone-100">
+                            Descripciones narrativas y desagregaciones de partidas. Incluye el resumen de políticas contables significativas. Son parte integral de los estados.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Box -->
+                <div class="bg-blue-50 p-6 rounded-xl border border-blue-100 h-fit">
+                    <h3 class="font-bold text-blue-800 mb-3">Principios Generales</h3>
+                    <ul class="space-y-3 text-sm text-blue-900">
+                        <li class="flex items-start">
+                            <span class="mr-2 mt-1">✓</span>
+                            <span><strong>Presentación Razonable:</strong> Fidelidad de los efectos de las transacciones.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2 mt-1">✓</span>
+                            <span><strong>Negocio en Marcha:</strong> Se asume que la entidad continuará operando.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2 mt-1">✓</span>
+                            <span><strong>Base de Acumulación (Devengo):</strong> Registro cuando ocurren, no cuando se pagan.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2 mt-1">✓</span>
+                            <span><strong>Materialidad:</strong> Información relevante que influye en decisiones.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- NIC 2 VIEW -->
+        <section id="nic2" class="view-section hidden max-w-5xl mx-auto">
+            <div class="mb-6 border-b pb-4">
+                <h2 class="text-2xl font-bold text-emerald-800">NIC 2: Inventarios</h2>
+                <p class="mt-2 text-stone-600">Utilice esta calculadora para determinar si su inventario necesita un ajuste por deterioro. La norma dicta valorar al menor entre el <strong>Costo</strong> y el <strong>Valor Neto Realizable (VNR)</strong>.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Calculator Controls -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                    <h3 class="font-bold text-stone-700 mb-4 text-lg">Calculadora de VNR</h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-stone-600 mb-1">Costo de Adquisición ($)</label>
+                            <input type="number" id="nic2-cost" value="1000" class="w-full p-2 border border-stone-300 rounded focus:ring-2 focus:ring-emerald-500 focus:outline-none" oninput="calculateNIC2()">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-stone-600 mb-1">Precio de Venta Estimado ($)</label>
+                            <input type="number" id="nic2-price" value="950" class="w-full p-2 border border-stone-300 rounded focus:ring-2 focus:ring-emerald-500 focus:outline-none" oninput="calculateNIC2()">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-stone-600 mb-1">Costos de Terminación/Venta ($)</label>
+                            <input type="number" id="nic2-selling-costs" value="50" class="w-full p-2 border border-stone-300 rounded focus:ring-2 focus:ring-emerald-500 focus:outline-none" oninput="calculateNIC2()">
+                            <p class="text-xs text-stone-400 mt-1">Incluye comisiones, transporte, embalaje.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 p-4 bg-stone-50 rounded-lg border border-stone-200">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-sm text-stone-600">VNR Calculado:</span>
+                            <span id="res-vnr" class="font-bold text-stone-800">$0.00</span>
+                        </div>
+                        <div class="flex justify-between mb-2">
+                            <span class="text-sm text-stone-600">Valor en Libros Final:</span>
+                            <span id="res-final-value" class="font-bold text-emerald-700">$0.00</span>
+                        </div>
+                        <div id="alert-deterioro" class="mt-3 p-2 bg-red-100 text-red-700 text-sm rounded hidden text-center font-semibold">
+                            ⚠️ Deterioro Detectado: $<span id="val-deterioro">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visualization -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200 flex flex-col justify-center">
+                    <h3 class="font-bold text-stone-700 mb-2 text-center">Comparación Costo vs. VNR</h3>
+                    <div class="chart-container">
+                        <canvas id="nic2Chart"></canvas>
+                    </div>
+                    <p class="text-xs text-center text-stone-400 mt-2">La barra más baja determina el valor final en el Balance.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- NIC 16 VIEW -->
+        <section id="nic16" class="view-section hidden max-w-5xl mx-auto">
+            <div class="mb-6 border-b pb-4">
+                <h2 class="text-2xl font-bold text-orange-800">NIC 16: Propiedades, Planta y Equipo</h2>
+                <p class="mt-2 text-stone-600">Simule la depreciación de un activo a lo largo de su vida útil. Observe cómo el valor en libros disminuye sistemáticamente según el método elegido.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Controls -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200 h-fit">
+                    <h3 class="font-bold text-stone-700 mb-4">Parámetros del Activo</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-stone-600 mb-1">Costo del Activo ($)</label>
+                            <input type="number" id="nic16-cost" value="10000" class="w-full p-2 border border-stone-300 rounded focus:ring-2 focus:ring-orange-500 focus:outline-none" oninput="calculateNIC16()">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-stone-600 mb-1">Valor Residual ($)</label>
+                            <input type="number" id="nic16-residual" value="1000" class="w-full p-2 border border-stone-300 rounded focus:ring-2 focus:ring-orange-500 focus:outline-none" oninput="calculateNIC16()">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-stone-600 mb-1">Vida Útil (Años)</label>
+                            <input type="range" id="nic16-life" min="2" max="20" value="5" class="w-full accent-orange-500" oninput="document.getElementById('life-val').innerText = this.value + ' años'; calculateNIC16()">
+                            <div class="text-right text-xs text-stone-500" id="life-val">5 años</div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-stone-600 mb-1">Método</label>
+                            <select id="nic16-method" class="w-full p-2 border border-stone-300 rounded focus:ring-2 focus:ring-orange-500 focus:outline-none" onchange="calculateNIC16()">
+                                <option value="linear">Lineal (Constante)</option>
+                                <option value="declining">Saldos Decrecientes (Doble)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visualization -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                    <h3 class="font-bold text-stone-700 mb-2 text-center">Curva de Depreciación (Valor en Libros)</h3>
+                    <div class="chart-container">
+                        <canvas id="nic16Chart"></canvas>
+                    </div>
+                    <div class="mt-4 grid grid-cols-3 gap-4 text-center text-sm bg-stone-50 p-3 rounded">
+                        <div>
+                            <div class="text-stone-500 text-xs">Importe Depreciable</div>
+                            <div class="font-bold text-stone-800" id="res-depreciable">$0</div>
+                        </div>
+                        <div>
+                            <div class="text-stone-500 text-xs">Depreciación Acum. Total</div>
+                            <div class="font-bold text-orange-700" id="res-accum">$0</div>
+                        </div>
+                        <div>
+                            <div class="text-stone-500 text-xs">Valor Final</div>
+                            <div class="font-bold text-stone-800" id="res-book-val">$0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- NIC 38 VIEW -->
+        <section id="nic38" class="view-section hidden max-w-4xl mx-auto">
+            <div class="mb-6 border-b pb-4">
+                <h2 class="text-2xl font-bold text-purple-800">NIC 38: Activos Intangibles</h2>
+                <p class="mt-2 text-stone-600">Herramienta de decisión para distinguir entre gastos de <strong>Investigación</strong> (Resultados) y costos de <strong>Desarrollo</strong> (Activo). Los intangibles deben ser identificables y controlables.</p>
+            </div>
+
+            <div class="bg-white p-8 rounded-xl shadow-sm border border-stone-200">
+                <h3 class="text-lg font-bold text-stone-700 mb-6 text-center">Evaluador de Proyecto: ¿Gasto o Activo?</h3>
+                
+                <!-- Interactive Logic Tree -->
+                <div class="space-y-6">
+                    <!-- Step 1 -->
+                    <div class="p-4 border border-stone-200 rounded-lg hover:border-purple-300 transition-colors">
+                        <p class="font-semibold text-stone-800 mb-3">1. ¿En qué fase se encuentra el desembolso?</p>
+                        <div class="flex space-x-4">
+                            <button onclick="setNic38State('investigation')" class="nic38-btn px-4 py-2 bg-stone-100 hover:bg-stone-200 rounded text-sm w-1/2 transition-colors focus:ring-2 focus:ring-purple-500 focus:outline-none" id="btn-inv">Fase de Investigación</button>
+                            <button onclick="setNic38State('development')" class="nic38-btn px-4 py-2 bg-stone-100 hover:bg-stone-200 rounded text-sm w-1/2 transition-colors focus:ring-2 focus:ring-purple-500 focus:outline-none" id="btn-dev">Fase de Desarrollo</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2 (Conditional) -->
+                    <div id="nic38-step2" class="p-4 border border-stone-200 rounded-lg hidden">
+                        <p class="font-semibold text-stone-800 mb-3">2. Verificación de Criterios (Fase Desarrollo)</p>
+                        <div class="space-y-2">
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" class="nic38-check w-4 h-4 text-purple-600" onchange="checkNic38Result()">
+                                <span class="text-sm">Viabilidad técnica completada.</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" class="nic38-check w-4 h-4 text-purple-600" onchange="checkNic38Result()">
+                                <span class="text-sm">Intención y capacidad de completar y vender/usar.</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" class="nic38-check w-4 h-4 text-purple-600" onchange="checkNic38Result()">
+                                <span class="text-sm">Probabilidad de beneficios económicos futuros.</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" class="nic38-check w-4 h-4 text-purple-600" onchange="checkNic38Result()">
+                                <span class="text-sm">Disponibilidad de recursos financieros/técnicos.</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" class="nic38-check w-4 h-4 text-purple-600" onchange="checkNic38Result()">
+                                <span class="text-sm">Medición fiable del costo.</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Result Box -->
+                    <div id="nic38-result" class="p-6 rounded-lg text-center font-bold hidden transition-all">
+                        <!-- Content injected by JS -->
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // State Management
+        let currentView = 'dashboard';
+        let nic2ChartInstance = null;
+        let nic16ChartInstance = null;
+        let nic38Phase = null;
+
+        // Navigation Logic
+        function navigateTo(viewId) {
+            // Update UI
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            document.getElementById(viewId).classList.remove('hidden');
+            
+            // Sidebar Active State
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-stone-800', 'text-white', 'border-l-4', 'border-blue-500');
+                btn.classList.add('border-transparent');
+            });
+            const activeBtn = document.getElementById(`nav-${viewId}`);
+            if(activeBtn) {
+                activeBtn.classList.add('bg-stone-800', 'text-white', 'border-l-4', 'border-blue-500');
+                activeBtn.classList.remove('border-transparent');
+            }
+
+            currentView = viewId;
+            
+            // Trigger specific renders
+            if (viewId === 'nic2') {
+                calculateNIC2();
+            } else if (viewId === 'nic16') {
+                calculateNIC16();
+            }
+        }
+
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        document.getElementById('mobile-menu-btn').addEventListener('click', toggleMobileMenu);
+
+        // NIC 1 Accordion Logic
+        function toggleAccordion(id) {
+            const content = document.getElementById(id);
+            const icon = document.getElementById(`icon-${id}`);
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                icon.innerText = '-';
+                icon.classList.add('text-blue-500');
+            } else {
+                content.classList.add('hidden');
+                icon.innerText = '+';
+                icon.classList.remove('text-blue-500');
+            }
+        }
+
+        // NIC 2 Logic (Inventories)
+        function calculateNIC2() {
+            const cost = parseFloat(document.getElementById('nic2-cost').value) || 0;
+            const price = parseFloat(document.getElementById('nic2-price').value) || 0;
+            const sellingCosts = parseFloat(document.getElementById('nic2-selling-costs').value) || 0;
+
+            const vnr = price - sellingCosts;
+            const finalValue = Math.min(cost, vnr);
+            const deterioro = cost - finalValue;
+
+            // Update Text
+            document.getElementById('res-vnr').innerText = `$${vnr.toFixed(2)}`;
+            document.getElementById('res-final-value').innerText = `$${finalValue.toFixed(2)}`;
+            
+            const alertBox = document.getElementById('alert-deterioro');
+            if (deterioro > 0) {
+                alertBox.classList.remove('hidden');
+                document.getElementById('val-deterioro').innerText = deterioro.toFixed(2);
+            } else {
+                alertBox.classList.add('hidden');
+            }
+
+            updateNIC2Chart(cost, vnr);
+        }
+
+        function updateNIC2Chart(cost, vnr) {
+            const ctx = document.getElementById('nic2Chart').getContext('2d');
+            
+            if (nic2ChartInstance) {
+                nic2ChartInstance.destroy();
+            }
+
+            const isDeterioro = vnr < cost;
+            const vnrColor = isDeterioro ? '#ef4444' : '#10b981'; // Red if lower, Emerald if higher/equal
+
+            nic2ChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Costo Histórico', 'Valor Neto Realizable (VNR)'],
+                    datasets: [{
+                        label: 'Valoración ($)',
+                        data: [cost, vnr],
+                        backgroundColor: ['#d6d3d1', vnrColor],
+                        borderWidth: 0,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#f5f5f4' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `$${context.raw.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // NIC 16 Logic (Depreciation)
+        function calculateNIC16() {
+            const cost = parseFloat(document.getElementById('nic16-cost').value) || 0;
+            const residual = parseFloat(document.getElementById('nic16-residual').value) || 0;
+            const life = parseInt(document.getElementById('nic16-life').value) || 5;
+            const method = document.getElementById('nic16-method').value;
+
+            const depreciableAmount = Math.max(0, cost - residual);
+            document.getElementById('res-depreciable').innerText = `$${depreciableAmount.toFixed(2)}`;
+
+            let dataPoints = [];
+            let labels = [];
+            let currentBookValue = cost;
+            let accumulatedDepreciation = 0;
+
+            // Year 0
+            labels.push('Inicio');
+            dataPoints.push(cost);
+
+            for (let i = 1; i <= life; i++) {
+                let expense = 0;
+
+                if (method === 'linear') {
+                    expense = depreciableAmount / life;
+                } else if (method === 'declining') {
+                    // Double Declining Balance: Rate = (2 / Life) * Book Value at Beginning of Year
+                    // Switch to straight line if optimal? Simplifying for this demo to pure DDB but respecting residual
+                    let rate = 2 / life;
+                    expense = currentBookValue * rate;
+                    // Check so we don't go below residual
+                    if (currentBookValue - expense < residual) {
+                        expense = currentBookValue - residual;
+                    }
+                }
+
+                // Ensure we don't over depreciate
+                if (accumulatedDepreciation + expense > depreciableAmount) {
+                    expense = depreciableAmount - accumulatedDepreciation;
+                }
+
+                accumulatedDepreciation += expense;
+                currentBookValue -= expense;
+                
+                labels.push(`Año ${i}`);
+                dataPoints.push(currentBookValue);
+            }
+
+            document.getElementById('res-accum').innerText = `$${accumulatedDepreciation.toFixed(2)}`;
+            document.getElementById('res-book-val').innerText = `$${currentBookValue.toFixed(2)}`;
+
+            updateNIC16Chart(labels, dataPoints);
+        }
+
+        function updateNIC16Chart(labels, data) {
+            const ctx = document.getElementById('nic16Chart').getContext('2d');
+            
+            if (nic16ChartInstance) {
+                nic16ChartInstance.destroy();
+            }
+
+            nic16ChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Valor en Libros',
+                        data: data,
+                        borderColor: '#f97316', // Orange-500
+                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                        fill: true,
+                        tension: 0.1,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#ea580c',
+                        pointRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#f5f5f4' },
+                            title: { display: true, text: 'Valor ($)' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Valor: $${context.raw.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // NIC 38 Logic (Intangibles)
+        function setNic38State(phase) {
+            nic38Phase = phase;
+            const btnInv = document.getElementById('btn-inv');
+            const btnDev = document.getElementById('btn-dev');
+            const step2 = document.getElementById('nic38-step2');
+            const result = document.getElementById('nic38-result');
+            const checks = document.querySelectorAll('.nic38-check');
+
+            // Reset UI
+            btnInv.classList.remove('bg-purple-600', 'text-white');
+            btnDev.classList.remove('bg-purple-600', 'text-white');
+            result.classList.add('hidden');
+
+            if (phase === 'investigation') {
+                btnInv.classList.add('bg-purple-600', 'text-white');
+                step2.classList.add('hidden');
+                
+                // Show Result immediately for Research
+                result.className = "mt-4 p-4 rounded-lg text-center font-bold bg-red-100 text-red-800 border border-red-200 block";
+                result.innerHTML = "❌ GASTO DEL PERIODO<br><span class='text-sm font-normal text-red-700'>En la fase de investigación, no se puede demostrar la generación de beneficios económicos futuros. Todo desembolso va a P&G.</span>";
+            
+            } else if (phase === 'development') {
+                btnDev.classList.add('bg-purple-600', 'text-white');
+                step2.classList.remove('hidden');
+                // Reset checks
+                checks.forEach(c => c.checked = false);
+                result.className = "mt-4 p-4 rounded-lg text-center font-bold bg-gray-100 text-gray-500 border border-gray-200 block";
+                result.innerHTML = "Pendiente de verificación de criterios...";
+            }
+        }
+
+        function checkNic38Result() {
+            if (nic38Phase !== 'development') return;
+
+            const checks = document.querySelectorAll('.nic38-check');
+            const allChecked = Array.from(checks).every(c => c.checked);
+            const result = document.getElementById('nic38-result');
+
+            if (allChecked) {
+                result.className = "mt-4 p-4 rounded-lg text-center font-bold bg-green-100 text-green-800 border border-green-200 block";
+                result.innerHTML = "✅ ACTIVO INTANGIBLE<br><span class='text-sm font-normal text-green-700'>Se cumplen todos los requisitos de reconocimiento de la NIC 38. Los costos pueden capitalizarse.</span>";
+            } else {
+                result.className = "mt-4 p-4 rounded-lg text-center font-bold bg-yellow-50 text-yellow-800 border border-yellow-200 block";
+                result.innerHTML = "⚠️ GASTO (Por ahora)<br><span class='text-sm font-normal text-yellow-700'>Debe cumplir TODOS los criterios simultáneamente para capitalizar. Si falta uno, se registra como gasto.</span>";
+            }
+        }
+
+        // Initialization
+        window.addEventListener('load', () => {
+            // Check sidebar button for dashboard active
+            document.getElementById('nav-dashboard').classList.add('bg-stone-800', 'text-white', 'border-l-4', 'border-blue-500');
+            document.getElementById('nav-dashboard').classList.remove('border-transparent');
+        });
+
+    </script>
+</body>
+</html>
